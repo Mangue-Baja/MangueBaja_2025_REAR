@@ -4,8 +4,10 @@
 #include "CANMsg.h"
 #include "MLX90614.h"
 /* User Libraries */
-#include "defs.h"
 #include "rear_defs.h"
+
+// if you wanna to push the DEBUG_ST, uncomment this define
+//#define DEBUG
 
 #define default_addr (0x00)
 
@@ -98,6 +100,7 @@ float MeasureSystemCurrent = 0.0;     // 4by
 
 int main()
 {
+    memset(&bluetooth_packet, 1, sizeof(bluetooth));
     /* Main variables */
     CANMsg txMsg;
     /* Initialization */
@@ -298,15 +301,15 @@ int main()
                 break;
 
             case DEBUG_ST:
-                //serial.printf("Debug state\r\n");
-                //serial.printf("Temperature Motor = %d\r\n", temp_motor);
-                //serial.printf("CVT Temperature = %d\r\n", MeasureCVTtemperature);
-                //serial.printf("Speed = %d\r\n", speed_filt);
-                //serial.printf("Voltage = %f\r\n", MeasureVoltage);
-                //serial.printf("SOC = %d\r\n", SOC);
-                //serial.printf("Current = %f\r\n", MeasureSystemCurrent);
-                //serial.printf("switch state = %d\r\n", switch_state);
-                //serial.printf("\n\n\n");
+                serial.printf("Debug state\r\n");
+                serial.printf("Temperature Motor = %d\r\n", temp_motor);
+                serial.printf("CVT Temperature = %d\r\n", MeasureCVTtemperature);
+                serial.printf("Speed = %d\r\n", speed_filt);
+                serial.printf("Voltage = %f\r\n", MeasureVoltage);
+                serial.printf("SOC = %d\r\n", SOC);
+                serial.printf("Current = %f\r\n", MeasureSystemCurrent);
+                serial.printf("switch state = %d\r\n", switch_state);
+                serial.printf("\n\n\n");
                 break;
         }
     }
@@ -567,6 +570,9 @@ void ticker1HzISR()
 void ticker5HzISR()
 {
     state_buffer.push(SPEED_ST);
+    #ifdef DEBUG
+        state_buffer.push(DEBUG_ST);
+    #endif
 }
 
 /* Interrupt handlers */
