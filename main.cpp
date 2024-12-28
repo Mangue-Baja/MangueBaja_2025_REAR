@@ -16,6 +16,8 @@
 
 #if defined(REAR_WHEEL) && defined(FRONT_WHEEL)
 #undef FRONT_WHEEL
+#elif !defined(REAR_WHEEL) && !defined(FRONT_WHEEL)
+#define REAR_WHEEL
 #endif
 
 bluetooth bluetooth_packet;
@@ -71,6 +73,7 @@ float speed_hz = 0;
 
 /* Interrupt handlers */
 void canHandler();
+void ServoHandler();
 /* Interrupt services routine */
 void canISR();
 void frequencyCounterISR();
@@ -111,7 +114,7 @@ int main()
 
     while (true)
     {
-        if(state_buffer.full()) 
+        if (state_buffer.full()) 
         {
             buffer_full = true;
             //led = 0;
@@ -119,7 +122,7 @@ int main()
         } else {
             //led = 1;
             buffer_full = false;
-            if(!state_buffer.empty())
+            if (!state_buffer.empty())
                 state_buffer.pop(current_state);
             else
                 current_state = IDLE_ST;
@@ -144,12 +147,12 @@ int main()
             case TEMP_MOTOR_ST:
                 //serial.printf("motor\r\n");
 
-                V_termistor = ADCVoltageLimit*ReadTempMotor.read();
+                V_termistor = ADCVoltageLimit * ReadTempMotor.read();
             
                 //calc1 = (float)115.5*(exp(-0.02187*(V_termistor*R_TERM)/(ADCVoltageLimit - V_termistor)));
                 //calc2 = (float)85.97*(exp(-0.00146*(V_termistor*R_TERM)/(ADCVoltageLimit - V_termistor)));
-                temp_motor = (float)115.5*(exp(-0.02187*(V_termistor*R_TERM)/(ADCVoltageLimit - V_termistor)))
-                           + (float)85.97*(exp(-0.00146*(V_termistor*R_TERM)/(ADCVoltageLimit - V_termistor)));
+                temp_motor = (float)115.5 * (exp(-0.02187 * (V_termistor*R_TERM) / (ADCVoltageLimit - V_termistor)))
+                           + (float)85.97 * (exp(-0.00146 * (V_termistor*R_TERM) / (ADCVoltageLimit - V_termistor)));
 
                 /* Send Motor Temperature data */
                 txMsg.clear(TEMPERATURE_ID);
@@ -194,7 +197,7 @@ int main()
 
                 if (current_period != 0)
                 {
-                    speed_hz = 1000000*((float)(pulse_counter)/current_period);    //calculates frequency in Hz
+                    speed_hz = 1000000 * ((float)(pulse_counter)/current_period);    //calculates frequency in Hz
                 }
 
                 else 
@@ -249,7 +252,7 @@ int main()
                 SOC = (uint8_t)(a + b + c + d + 100);
                 */
 
-                SOC = (uint8_t)(((MeasureVoltage - 9.6)/3)*100); /* 12.6 - 9.6 = 3 */
+                SOC = (uint8_t)(((MeasureVoltage - 9.6) / 3) * 100); /* 12.6 - 9.6 = 3 */
 
                 //Led = !Led;
                 //SOC = 100;
@@ -259,13 +262,13 @@ int main()
                 txMsg.clear(VOLTAGE_ID);
                 txMsg << MeasureVoltage;
                 //can.write(txMsg);
-                if(can.write(txMsg)) 
+                if (can.write(txMsg)) 
                 {
                     /* Send SOC(State of Charge) message if voltage successfully */
                     //led = !led;
 
                     txMsg.clear(SOC_ID);
-                    txMsg << (SOC > 100 ? 5 : SOC);
+                    txMsg << (SOC > 100 ? 100 : SOC);
                     can.write(txMsg);
                 }
 
@@ -292,11 +295,11 @@ int main()
             case THROTTLE_ST:
                 //serial.printf("throttle\r\n");
 
-                if (switch_clicked)
-                {
-                    writeServo(switch_state);
-                    switch_clicked = false;
-                }
+                //if (switch_clicked)
+                //{
+                //    writeServo(switch_state);
+                //    switch_clicked = false;
+                //}
 
                 break;
 
@@ -346,7 +349,8 @@ void filterMessage(CANMsg msg)
             switch_clicked = true;
             msg >> switch_state;
             //state_buffer.reset();
-            state_buffer.push(THROTTLE_ST);
+            //state_buffer.push(THROTTLE_ST);
+            queue.call(&ServoHandler); // add ServoHandler() to events queue
             break; 
 
         case RPM_ID:
@@ -368,16 +372,16 @@ float CVT_Temperature()
 
     if (!i2c.write((default_addr | 0x00), ucdata_write, 1, 0)) // Check for ACK from i2c Device
     {
-        for (j = 0; j < sample; j++) 
+        for (j = 0; j < CVTsample; j++) 
         { 
-            for (i = 0; i < sample; i++) 
+            for (i = 0; i < CVTsample; i++) 
             {              
                 // temp_amb = mlx.read_temp(0);
                 //temp_obj = mlx.read_temp(1);
                 x_obj += mlx.read_temp(1); // Acumulando a temperatura objeto
-                med_obj = x_obj / (float)sample; // Calcula a média
+                med_obj = x_obj / (float)CVTsample; // Calcula a média
 
-                if(med_obj > AverageObjectTemp)
+                if (med_obj > AverageObjectTemp)
                     AverageObjectTemp = med_obj;
             }
             TKm = AverageObjectTemp + 273;
@@ -393,7 +397,7 @@ float CVT_Temperature()
     }
 
     // Retorna a média da temperatura
-    return CVT_Temperaturer/(float)sample; 
+    return CVT_Temperaturer/(float)CVTsample; 
 }
 
 /*float Level_Moving_Average()
@@ -444,7 +448,7 @@ float Voltage_moving_average()
         for (i = 0; i < (sample) ; i++) 
         {
             InputVoltage = (float)((ReadVoltage.read_u16() * ADCVoltageLimit) / 65535.0);
-            ADCvoltage = Calibration_Factor*(InputVoltage / (R2_Value/(R1_Value + R2_Value)));
+            ADCvoltage = Calibration_Factor * (InputVoltage / (R2_Value/(R1_Value + R2_Value)));
             aux += ADCvoltage;
         }
         value = aux/(float)sample;
@@ -467,7 +471,7 @@ float SystemCurrent_moving_average()
 
     for (j = 0; j < (sample); j++)
     { 
-        for (i = 0; i < (sample)*2 ; i++) 
+        for (i = 0; i < (sample * 4) ; i++) 
         {
             InputSystemCurrent = (float)(ReadSystemCurrent.read_u16() * (ADCVoltageLimit / 65535.0));
             ADCSystemCurrent = (VacsI0 - InputSystemCurrent) / 0.185;
@@ -563,7 +567,7 @@ void ticker1HzISR()
     ticker200mHz.attach(&ticker200mHzISR, 5);
     ticker250mHz.attach(&ticker250mHzISR, 4);
     ticker500mHz.attach(&ticker500mHzISR, 2);
-
+    
     ticker1Hz.detach();
 }
 
@@ -583,4 +587,14 @@ void canHandler()
     can.read(rxMsg);
     filterMessage(rxMsg);
     CAN_IER |= CAN_IER_FMPIE0;                  // enable RX interrupt
+}
+
+void ServoHandler()
+{
+    //serial.printf("throttle\r\n");
+    if (switch_clicked)
+    {
+        writeServo(switch_state);
+        switch_clicked = false;
+    }
 }
