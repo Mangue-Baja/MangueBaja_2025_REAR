@@ -133,14 +133,6 @@ int main()
             case IDLE_ST:
                 //serial.printf("idle\r\n");
 
-                if (BLE_REQUEST)
-                {
-                    BLE_REQUEST = false;
-                    txMsg.clear(TCU_ID);
-                    txMsg << bluetooth_packet.servo_state;
-                    can.write(txMsg);                    
-                }
-
                 //Thread::wait(1);
                 break;
 
@@ -278,7 +270,7 @@ int main()
                 //serial.printf("current\r\n");
                 //SignalVacsI0 = ReadSystemCurrent.read_u16();
                 //Calculate_VacsI0 = (SignalVacsI0*(ADCVoltageLimit/65535.0));
-                // Calculate_VacsI0 = SignalVacsI0 ;
+                // Calculate_VacsI0 = SignalVacsI0;
                 MeasureSystemCurrent = SystemCurrent_moving_average();
                 //MeasureSystemCurrent = MeasureSystemCurrent * 1.23885;
                 
@@ -350,7 +342,8 @@ void filterMessage(CANMsg msg)
             msg >> switch_state;
             //state_buffer.reset();
             //state_buffer.push(THROTTLE_ST);
-            queue.call(&ServoHandler); // add ServoHandler() to events queue
+            ServoHandler();
+            //queue.call(&ServoHandler); // add ServoHandler() to events queue
             break; 
 
         case RPM_ID:
@@ -359,6 +352,15 @@ void filterMessage(CANMsg msg)
     
         case MPU_ID:
             msg >> BLE_REQUEST;
+
+            if (BLE_REQUEST)
+            {
+                BLE_REQUEST = false;
+                msg.clear(TCU_ID);
+                msg << bluetooth_packet.servo_state;
+                can.write(msg);
+            }
+                
             break;
     }
 }
