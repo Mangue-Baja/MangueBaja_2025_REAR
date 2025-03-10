@@ -33,7 +33,7 @@ AnalogIn ReadTempMotor(PA_0);
 //AnalogIn ReadLevel(PA_1);
 AnalogIn ReadVoltage(PA_4);                
 AnalogIn ReadSystemCurrent(PB_0); 
-PwmOut servo(PA_6);
+// PwmOut servo(PA_6);
 DigitalOut led(PC_13);
 /* Debug pins */
 //PwmOut signal(PA_7);
@@ -73,7 +73,7 @@ float speed_hz = 0;
 
 /* Interrupt handlers */
 void canHandler();
-void ServoHandler();
+// void ServoHandler();
 /* Interrupt services routine */
 void canISR();
 void frequencyCounterISR();
@@ -83,14 +83,14 @@ void ticker500mHzISR();
 void ticker1HzISR();
 void ticker5HzISR();
 /* General functions*/
-void initPWM();
+// void initPWM();
 void setupInterrupts();
 void filterMessage(CANMsg msg);
 float CVT_Temperature();
 //float Level_Moving_Average();
 float Voltage_moving_average();
 float SystemCurrent_moving_average();
-uint16_t writeServo(uint8_t MODE);
+// uint16_t writeServo(uint8_t MODE);
 
 /* CAN Variables */
 uint8_t temp_motor = 0;               // 1by
@@ -109,7 +109,7 @@ int main()
     /* Initialization */
     t.start();
     eventThread.start(callback(&queue, &EventQueue::dispatch_forever));
-    initPWM();
+    // initPWM();
     setupInterrupts();
 
     while (true)
@@ -137,7 +137,7 @@ int main()
                 break;
 
             case TEMP_MOTOR_ST:
-                //serial.printf("motor\r\n");
+                serial.printf("motor\r\n");
 
                 V_termistor = ADCVoltageLimit * ReadTempMotor.read();
             
@@ -154,7 +154,7 @@ int main()
                 break;
 
             case TEMP_CVT_ST:
-                //serial.printf("cvt\r\n");
+                serial.printf("cvt\r\n");
 
                 MeasureCVTtemperature = (uint8_t)CVT_Temperature(); 
                 //MeasureCVTtemperature = 90;
@@ -183,7 +183,7 @@ int main()
                 break;
 
             case SPEED_ST:
-                //serial.printf("speed\r\n");
+                serial.printf("speed\r\n");
 
                 freq_sensor.fall(NULL);         // disable interrupt
 
@@ -219,9 +219,9 @@ int main()
                 txMsg.clear(SPEED_ID);
                 txMsg << speed;
                 //serial.printf("speed can: %d\r\n", speed);
-                can.write(txMsg);
-                //if(can.write(txMsg))
-                //    led = !led;
+                //can.write(txMsg);
+                if(can.write(txMsg))
+                    db = !db;
 
                 /* re-init the counter */
                 pulse_counter = 0;                          
@@ -232,7 +232,7 @@ int main()
                 break;    
 
             case VOLTAGE_ST:
-                //serial.printf("voltage\r\n");
+                serial.printf("voltage\r\n");
                 
                 MeasureVoltage = Voltage_moving_average();
             
@@ -303,7 +303,7 @@ int main()
                 serial.printf("Voltage = %f\r\n", MeasureVoltage);
                 serial.printf("SOC = %d\r\n", SOC);
                 serial.printf("Current = %f\r\n", MeasureSystemCurrent);
-                serial.printf("switch state = %d\r\n", switch_state);
+                //serial.printf("switch state = %d\r\n", switch_state);
                 serial.printf("\n\n\n");
                 break;
         }
@@ -311,13 +311,13 @@ int main()
 }
 
 /* General functions */
-void initPWM()
-{
-    servo.period_ms(20);                        // set signal frequency to 50Hz
-    servo.write(0);                             // disables servo
-    //signal.period_ms(320);                      // set signal frequency to 1/0.032Hz
-    //signal.write(0.5f);                         // dutycycle 50%
-}
+// void initPWM()
+// {
+//     servo.period_ms(20);                        // set signal frequency to 50Hz
+//     servo.write(0);                             // disables servo
+//     //signal.period_ms(320);                      // set signal frequency to 1/0.032Hz
+//     //signal.write(0.5f);                         // dutycycle 50%
+// }
 
 void setupInterrupts()
 {
@@ -337,14 +337,14 @@ void filterMessage(CANMsg msg)
 
     switch (msg.id) 
     {
-        case THROTTLE_ID:
-            switch_clicked = true;
-            msg >> switch_state;
-            //state_buffer.reset();
-            //state_buffer.push(THROTTLE_ST);
-            ServoHandler();
-            //queue.call(&ServoHandler); // add ServoHandler() to events queue
-            break; 
+        // case THROTTLE_ID:
+        //     switch_clicked = true;
+        //     msg >> switch_state;
+        //     //state_buffer.reset();
+        //     //state_buffer.push(THROTTLE_ST);
+        //     ServoHandler();
+        //     //queue.call(&ServoHandler); // add ServoHandler() to events queue
+        //     break; 
 
         case RPM_ID:
             msg >> data.rpm;
@@ -442,8 +442,8 @@ float Voltage_moving_average()
     //float Calibration_Factor = 0.987;
     //float Calibration_Factor = 0.715;
     float Calibration_Factor = 1.0;
-    float R1_Value = 30000.0;               // VALOR DO RESISTOR 1 DO DIVISOR DE TENSÃO
-    float R2_Value = 7500.0;                // VALOR DO RESISTOR 2 DO DIVISOR DE TENSÃO
+    float R1_Value = 29840.0;               // VALOR DO RESISTOR 1 DO DIVISOR DE TENSÃO
+    float R2_Value = 7480.0;                // VALOR DO RESISTOR 2 DO DIVISOR DE TENSÃO
 
     for (j = 0; j < (sample); j++) 
     { 
@@ -487,42 +487,42 @@ float SystemCurrent_moving_average()
     return value/(float)sample; // I don't know why we need divide by sample, but works.
 }
 
-uint16_t writeServo(uint8_t MODE)
-{
-    uint16_t SERVO_MODE;
+// uint16_t writeServo(uint8_t MODE)
+// {
+//     uint16_t SERVO_MODE;
 
-    switch (MODE) 
-    {
-        case MID_MODE:
-            servo.pulsewidth_us(SERVO_MID);
-            //data.flags &= ~(0x03); // reset run and choke flags
-            bluetooth_packet.servo_state = 3;
-            SERVO_MODE = SERVO_MID;
-            break;
+//     switch (MODE) 
+//     {
+//         case MID_MODE:
+//             servo.pulsewidth_us(SERVO_MID);
+//             //data.flags &= ~(0x03); // reset run and choke flags
+//             bluetooth_packet.servo_state = 3;
+//             SERVO_MODE = SERVO_MID;
+//             break;
 
-        case RUN_MODE:
-            servo.pulsewidth_us(SERVO_RUN);
-            //data.flags |= RUN_MODE;    // set run flag
-            bluetooth_packet.servo_state = 2;
-            SERVO_MODE = SERVO_RUN;
-            break;
+//         case RUN_MODE:
+//             servo.pulsewidth_us(SERVO_RUN);
+//             //data.flags |= RUN_MODE;    // set run flag
+//             bluetooth_packet.servo_state = 2;
+//             SERVO_MODE = SERVO_RUN;
+//             break;
 
-        case CHOKE_MODE:
-            servo.pulsewidth_us(SERVO_CHOKE);
-            //data.flags |= CHOKE_MODE;    // set choke flag
-            bluetooth_packet.servo_state = 4;
-            SERVO_MODE = SERVO_CHOKE;
-            break;
+//         case CHOKE_MODE:
+//             servo.pulsewidth_us(SERVO_CHOKE);
+//             //data.flags |= CHOKE_MODE;    // set choke flag
+//             bluetooth_packet.servo_state = 4;
+//             SERVO_MODE = SERVO_CHOKE;
+//             break;
 
-        default:
-            //serial.printf("Choke/run error\r\n");
-            bluetooth_packet.servo_state = 1;
-            SERVO_MODE = 0;
-            break;
-    }
+//         default:
+//             //serial.printf("Choke/run error\r\n");
+//             bluetooth_packet.servo_state = 1;
+//             SERVO_MODE = 0;
+//             break;
+//     }
 
-    return SERVO_MODE;
-}
+//     return SERVO_MODE;
+// }
 
 /* Interrupt services routine */
 void canISR()
@@ -591,12 +591,12 @@ void canHandler()
     CAN_IER |= CAN_IER_FMPIE0;                  // enable RX interrupt
 }
 
-void ServoHandler()
-{
-    //serial.printf("throttle\r\n");
-    if (switch_clicked)
-    {
-        writeServo(switch_state);
-        switch_clicked = false;
-    }
-}
+// void ServoHandler()
+// {
+//     //serial.printf("throttle\r\n");
+//     if (switch_clicked)
+//     {
+//         writeServo(switch_state);
+//         switch_clicked = false;
+//     }
+// }

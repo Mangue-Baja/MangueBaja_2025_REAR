@@ -11,8 +11,8 @@
 /* Moving Average Definitions */
 #define ADCVoltageLimit     3.3
 #define R_TERM              1000
-#define sample              150
-#define CVTsample           50
+#define sample              40
+#define CVTsample           25
 //#define DENSITY             1.3565
 
 /* Wheel Definitions */
